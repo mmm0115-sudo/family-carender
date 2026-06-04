@@ -11,6 +11,7 @@ import {
   differenceInDays,
   differenceInMonths,
   differenceInYears,
+  format,
 } from 'date-fns';
 import type { CalendarEvent, EventOccurrence, RecurrenceRule } from '@/types';
 
@@ -24,7 +25,7 @@ function occurrenceFromBase(
     id: `${event.id}_${occStart.toISOString()}`,
     startDate: occStart.toISOString(),
     endDate: new Date(occStart.getTime() + durationMs).toISOString(),
-    occurrenceDate: startOfDay(occStart).toISOString(),
+    occurrenceDate: format(startOfDay(occStart), 'yyyy-MM-dd'),
     isRecurring: true,
   };
 }
@@ -204,7 +205,7 @@ export function getOccurrencesInRange(
       if (!isAfter(start, rangeEnd) && !isBefore(end, rangeStart)) {
         results.push({
           ...event,
-          occurrenceDate: startOfDay(start).toISOString(),
+          occurrenceDate: format(startOfDay(start), 'yyyy-MM-dd'),
           isRecurring: false,
         });
       }
