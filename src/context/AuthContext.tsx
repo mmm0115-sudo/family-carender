@@ -48,6 +48,7 @@ interface AuthContextValue {
   firebaseUser: FirebaseUser | null;
   userDoc: User | null;
   loading: boolean;
+  initError: string | null;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
@@ -61,6 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [userDoc, setUserDoc] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [initError, setInitError] = useState<string | null>(null);
 
   const refreshUserDoc = async () => {
     if (!firebaseUser) return;
@@ -71,14 +73,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsub = onAuthStateChanged(getFirebaseAuth(), async (fbUser) => {
       setFirebaseUser(fbUser);
-      if (fbUser) {
-        // ドキュメントがなければ自動作成（Google初回ログイン対応）
-        const d = await ensureUserDoc(fbUser);
-        setUserDoc(d);
-      } else {
-        setUserDoc(null);
+      setInitError(null);
+      try {
+        if (fbUser) {
+          const d = await ensureUserDoc(fbUser);
+          setUserDoc(d);
+        } else {
+          setUserDoc(null);
+        }
+      } catch (err: unknown) {
+        const e = err as { code?: string; message?: string };
+        // Firestoreが未作成 or ルールエラーの場合に分かりやすいメッセージを出す
+        if (e?.code === 'unavailable' || e?.message?.includes('CONFIGURATION_NOT_FOUND') || e?.code?.includes('not-found')) {
+          setInitError('Firestoreデータベースが作成されていません。Firebase Consoleで「Firestore Database」を作成してください。');
+        } else {
+          setInitError(`初期化エラー: ${e?.message ?? String(err)}`);
+        }
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
     return unsub;
   }, []);
@@ -110,7 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ firebaseUser, userDoc, loading, signIn, signUp, signInWithGoogle, logOut, refreshUserDoc }}
+      value={{ firebaseUser, userDoc, loading, initError, signIn, signUp, signInWithGoogle, logOut, refreshUserDoc }}
     >
       {children}
     </AuthContext.Provider>

@@ -13,7 +13,7 @@ import GoogleCalendarImport from '@/components/GoogleCalendarImport';
 import type { CalendarEvent, EventOccurrence, Family, FamilyMember } from '@/types';
 
 export default function CalendarPage() {
-  const { firebaseUser, userDoc, loading, logOut } = useAuth();
+  const { firebaseUser, userDoc, loading, initError, logOut } = useAuth();
   const router = useRouter();
 
   const [family, setFamily] = useState<Family | null>(null);
@@ -46,7 +46,40 @@ export default function CalendarPage() {
     return getOccurrences(start, end);
   }, [events, currentMonth]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (loading || !userDoc) {
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (initError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50">
+        <div className="bg-white rounded-2xl shadow-lg max-w-md w-full p-8 text-center">
+          <div className="text-4xl mb-4">⚠️</div>
+          <h2 className="text-lg font-bold text-gray-900 mb-2">セットアップが必要です</h2>
+          <p className="text-sm text-gray-600 mb-6 leading-relaxed">{initError}</p>
+          <div className="bg-gray-50 rounded-xl p-4 text-left text-sm text-gray-700 space-y-2 mb-6">
+            <p className="font-medium">手順:</p>
+            <p>1. <a href="https://console.firebase.google.com" target="_blank" rel="noreferrer" className="text-blue-500 underline">Firebase Console</a> を開く</p>
+            <p>2. プロジェクト「familycarender-ce55a」を選択</p>
+            <p>3. 左メニュー「Firestore Database」→「データベースを作成」</p>
+            <p>4. 「テストモードで開始」を選択して完了</p>
+          </div>
+          <button
+            onClick={() => window.location.reload()}
+            className="w-full py-3 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-colors"
+          >
+            設定したら再読み込み
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!userDoc) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
