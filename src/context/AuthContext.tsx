@@ -5,6 +5,8 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  signInWithPopup,
+  GoogleAuthProvider,
   signOut,
   updateProfile,
   type User as FirebaseUser,
@@ -14,14 +16,8 @@ import { createUserDoc, getUserDoc } from '@/lib/firestore';
 import type { User } from '@/types';
 
 const USER_COLORS = [
-  '#FF6B6B',
-  '#4ECDC4',
-  '#45B7D1',
-  '#96CEB4',
-  '#F7AB2A',
-  '#DDA0DD',
-  '#98D8C8',
-  '#FF8C42',
+  '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4',
+  '#F7AB2A', '#DDA0DD', '#98D8C8', '#FF8C42',
 ];
 
 function pickColor(uid: string): string {
@@ -32,12 +28,29 @@ function pickColor(uid: string): string {
   return USER_COLORS[Math.abs(hash) % USER_COLORS.length];
 }
 
+// Google ユーザーが初回ログインのときドキュメントを自動作成
+async function ensureUserDoc(fbUser: FirebaseUser): Promise<User> {
+  let d = await getUserDoc(fbUser.uid);
+  if (!d) {
+    const color = pickColor(fbUser.uid);
+    await createUserDoc(
+      fbUser.uid,
+      fbUser.email ?? '',
+      fbUser.displayName ?? fbUser.email?.split('@')[0] ?? 'ユーザー',
+      color
+    );
+    d = await getUserDoc(fbUser.uid);
+  }
+  return d!;
+}
+
 interface AuthContextValue {
   firebaseUser: FirebaseUser | null;
   userDoc: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, displayName: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   logOut: () => Promise<void>;
   refreshUserDoc: () => Promise<void>;
 }
@@ -56,11 +69,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    const auth = getFirebaseAuth();
-    const unsub = onAuthStateChanged(auth, async (fbUser) => {
+    const unsub = onAuthStateChanged(getFirebaseAuth(), async (fbUser) => {
       setFirebaseUser(fbUser);
       if (fbUser) {
-        const d = await getUserDoc(fbUser.uid);
+        // ドキュメントがなければ自動作成（Google初回ログイン対応）
+        const d = await ensureUserDoc(fbUser);
         setUserDoc(d);
       } else {
         setUserDoc(null);
@@ -84,6 +97,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUserDoc(d);
   };
 
+  const signInWithGoogle = async () => {
+    const provider = new GoogleAuthProvider();
+    await signInWithPopup(getFirebaseAuth(), provider);
+    // onAuthStateChanged が自動で ensureUserDoc を呼ぶ
+  };
+
   const logOut = async () => {
     await signOut(getFirebaseAuth());
     setUserDoc(null);
@@ -91,7 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ firebaseUser, userDoc, loading, signIn, signUp, logOut, refreshUserDoc }}
+      value={{ firebaseUser, userDoc, loading, signIn, signUp, signInWithGoogle, logOut, refreshUserDoc }}
     >
       {children}
     </AuthContext.Provider>
