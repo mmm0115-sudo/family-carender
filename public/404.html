@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script>
+    // GitHub Pages SPA redirect: store the path and redirect to index
+    var path = window.location.pathname.replace('/family-carender', '') || '/';
+    sessionStorage.setItem('redirect', path + window.location.search + window.location.hash);
+    window.location.replace('/family-carender/');
+  </script>
+</head>
+<body></body>
+</html>
